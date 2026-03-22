@@ -1,21 +1,44 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { compareHash } from '../common/utils/hash.util';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Injectable()
 export class AuthService {
-  login(dto: LoginDto) {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async login(dto: LoginDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isValid = await compareHash(dto.password, user.passwordHash);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
     return {
       data: {
-        email: dto.email,
-        accessToken: 'pending-access-token',
-        refreshToken: 'pending-refresh-token',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        accessToken: `pending-access-token-for-${user.id}`,
+        refreshToken: `pending-refresh-token-for-${user.id}`,
       },
     };
   }
 
-  refresh(dto: RefreshTokenDto) {
+  async refresh(dto: RefreshTokenDto) {
     return {
       data: {
         refreshToken: dto.refreshToken,
@@ -24,7 +47,7 @@ export class AuthService {
     };
   }
 
-  logout(dto: LogoutDto) {
+  async logout(dto: LogoutDto) {
     return {
       data: {
         revoked: true,

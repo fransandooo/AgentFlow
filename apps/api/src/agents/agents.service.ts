@@ -1,30 +1,104 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { generateApiKey } from '../common/utils/api-key.util';
+import { hashValue } from '../common/utils/hash.util';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 
 @Injectable()
 export class AgentsService {
-  create(dto: CreateAgentDto) {
-    return { data: { ...dto, apiKey: 'plain-key-once-only-pending' } };
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(dto: CreateAgentDto) {
+    const apiKey = generateApiKey('af_agent');
+    const apiKeyHash = await hashValue(apiKey);
+
+    const agent = await this.prisma.agent.create({
+      data: {
+        name: dto.name,
+        type: dto.type,
+        teamId: dto.teamId,
+        isActive: dto.isActive ?? true,
+        apiKeyHash,
+      },
+    });
+
+    return {
+      data: {
+        ...agent,
+        apiKey,
+      },
+    };
   }
 
-  findAll() {
-    return { data: [] };
+  async findAll() {
+    const agents = await this.prisma.agent.findMany({
+      include: {
+        team: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { data: agents };
   }
 
-  findOne(id: string) {
-    return { data: { id } };
+  async findOne(id: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id },
+      include: { team: true },
+    });
+
+    if (!agent) {
+      throw new NotFoundException(`Agent ${id} not found`);
+    }
+
+    return { data: agent };
   }
 
-  update(id: string, dto: UpdateAgentDto) {
-    return { data: { id, ...dto } };
+  async update(id: string, dto: UpdateAgentDto) {
+    await this.ensureExists(id);
+
+    const agent = await this.prisma.agent.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        type: dto.type,
+        teamId: dto.teamId,
+        isActive: dto.isActive,
+      },
+      include: { team: true },
+    });
+
+    return { data: agent };
   }
 
-  remove(id: string) {
+  async remove(id: string) {
+    await this.ensureExists(id);
+    await this.prisma.agent.delete({ where: { id } });
     return { data: { id, deleted: true } };
   }
 
-  rotateKey(id: string) {
-    return { data: { id, apiKey: 'rotated-key-once-only-pending' } };
+  async rotateKey(id: string) {
+    await this.ensureExists(id);
+
+    const apiKey = generateApiKey('af_agent');
+    const apiKeyHash = await hashValue(apiKey);
+
+    await this.prisma.agent.update({
+      where: { id },
+      data: { apiKeyHash },
+    });
+
+    return { data: { id, apiKey } };
+  }
+
+  private async ensureExists(id: string) {
+    const agent = await this.prisma.agent.findUnique({ where: { id } });
+
+    if (!agent) {
+      throw new NotFoundException(`Agent ${id} not found`);
+    }
+
+    return agent;
   }
 }
