@@ -1,0 +1,15 @@
+{
+  "name": "@agentflow/types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "echo 'types build pending'",
+    "lint": "echo 'types lint pending'",
+    "format": "echo 'types format pending'",
+    "typecheck": "echo 'types typecheck pending'"
+  }
+}

@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum GlobalTaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+  BLOCKED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime     @default(now())
+
+  ownedProjects      Project[]      @relation("ProjectOwner")
+  assignedTasks      Task[]         @relation("TaskAssigneeUser")
+  comments           Comment[]      @relation("CommentAuthorUser")
+  activityLogs       ActivityLog[]  @relation("ActivityActorUser")
+  teamMemberships    TeamMember[]   @relation("TeamMemberUser")
+}
+
+model Agent {
+  id              String       @id @default(uuid()) @db.Uuid
+  name            String
+  type            String
+  apiKeyHash      String       @unique
+  teamId          String?      @db.Uuid
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+
+  team            Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  assignedTasks   Task[]       @relation("TaskAssigneeAgent")
+  comments        Comment[]    @relation("CommentAuthorAgent")
+  activityLogs    ActivityLog[] @relation("ActivityActorAgent")
+  teamMemberships TeamMember[] @relation("TeamMemberAgent")
+}
+
+model Team {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+
+  agents      Agent[]
+  members     TeamMember[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  teamId    String   @db.Uuid
+  userId    String?  @db.Uuid
+  agentId   String?  @db.Uuid
+
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User?    @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  agent     Agent?   @relation("TeamMemberAgent", fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@unique([teamId, agentId])
+}
+
+model Project {
+  id            String       @id @default(uuid()) @db.Uuid
+  name          String
+  description   String?
+  slug          String       @unique
+  color         String
+  ownerId       String       @db.Uuid
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  owner         User         @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  customStatuses TaskStatus[]
+  tasks         Task[]
+}
+
+model TaskStatus {
+  id         String   @id @default(uuid()) @db.Uuid
+  projectId  String   @db.Uuid
+  name       String
+  color      String
+  order      Int
+  isDefault  Boolean  @default(false)
+
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+
+  @@unique([projectId, name])
+  @@unique([projectId, order])
+}
+
+model Task {
+  id               String           @id @default(uuid()) @db.Uuid
+  projectId        String           @db.Uuid
+  parentId         String?          @db.Uuid
+  title            String
+  description      String?
+  status           GlobalTaskStatus
+  customStatusId   String?          @db.Uuid
+  priority         TaskPriority
+  assigneeUserId   String?          @db.Uuid
+  assigneeAgentId  String?          @db.Uuid
+  createdByType    String
+  createdById      String           @db.Uuid
+  dueDate          DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent           Task?            @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks         Task[]           @relation("TaskSubtasks")
+  customStatus     TaskStatus?      @relation(fields: [customStatusId], references: [id], onDelete: SetNull)
+  assigneeUser     User?            @relation("TaskAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  assigneeAgent    Agent?           @relation("TaskAssigneeAgent", fields: [assigneeAgentId], references: [id], onDelete: SetNull)
+  comments         Comment[]
+  activityLogs     ActivityLog[]
+
+  @@index([projectId, status])
+  @@index([assigneeUserId])
+  @@index([assigneeAgentId])
+}
+
+model Comment {
+  id            String    @id @default(uuid()) @db.Uuid
+  taskId         String    @db.Uuid
+  authorUserId   String?   @db.Uuid
+  authorAgentId  String?   @db.Uuid
+  content        String
+  createdAt      DateTime  @default(now())
+
+  task           Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorUser     User?     @relation("CommentAuthorUser", fields: [authorUserId], references: [id], onDelete: SetNull)
+  authorAgent    Agent?    @relation("CommentAuthorAgent", fields: [authorAgentId], references: [id], onDelete: SetNull)
+}
+
+model ActivityLog {
+  id            String    @id @default(uuid()) @db.Uuid
+  taskId         String    @db.Uuid
+  actorUserId    String?   @db.Uuid
+  actorAgentId   String?   @db.Uuid
+  action         String
+  metadata       Json
+  createdAt      DateTime  @default(now())
+
+  task           Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actorUser      User?     @relation("ActivityActorUser", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorAgent     Agent?    @relation("ActivityActorAgent", fields: [actorAgentId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, createdAt])
+}

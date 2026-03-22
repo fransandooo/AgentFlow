@@ -1,0 +1,12 @@
+{
+  "name": "@agentflow/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "echo 'web build pending'",
+    "lint": "echo 'web lint pending'",
+    "format": "echo 'web format pending'",
+    "typecheck": "echo 'web typecheck pending'"
+  }
+}
