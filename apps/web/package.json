@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "echo 'web build pending'",
-    "lint": "echo 'web lint pending'",
-    "format": "echo 'web format pending'",
-    "typecheck": "echo 'web typecheck pending'"
+    "build": "node -e \"console.log('web build pending')\"",
+    "lint": "node -e \"console.log('web lint pending')\"",
+    "format": "node -e \"console.log('web format pending')\"",
+    "typecheck": "node -e \"console.log('web typecheck pending')\""
   }
 }

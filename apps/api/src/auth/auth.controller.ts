@@ -1,6 +1,8 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { LogoutDto } from './dto/logout.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -12,12 +14,12 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refresh() {
-    return { data: { message: 'refresh pending' } };
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto);
   }
 
   @Post('logout')
-  logout() {
-    return { data: { message: 'logout pending' } };
+  logout(@Body() dto: LogoutDto) {
+    return this.authService.logout(dto);
   }
 }
