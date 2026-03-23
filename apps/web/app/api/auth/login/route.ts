@@ -1,11 +1,13 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { API_URL } from '@/lib/config';
+import { getRequestOrigin } from '@/lib/request-url';
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const email = String(formData.get('email') || '');
   const password = String(formData.get('password') || '');
+  const origin = getRequestOrigin(request);
 
   const response = await fetch(`${API_URL}/api/v1/auth/login`, {
     method: 'POST',
@@ -15,14 +17,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (!response.ok) {
-    return NextResponse.redirect(new URL('/login?error=1', request.url));
+    return NextResponse.redirect(`${origin}/login?error=1`);
   }
 
   const payload = await response.json();
   const accessToken = payload?.data?.accessToken;
 
   if (!accessToken) {
-    return NextResponse.redirect(new URL('/login?error=1', request.url));
+    return NextResponse.redirect(`${origin}/login?error=1`);
   }
 
   cookies().set('agentflow_session', accessToken, {
@@ -32,5 +34,5 @@ export async function POST(request: NextRequest) {
     path: '/',
   });
 
-  return NextResponse.redirect(new URL('/', request.url));
+  return NextResponse.redirect(`${origin}/`);
 }
