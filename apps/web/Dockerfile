@@ -9,5 +9,7 @@ RUN pnpm install --filter @agentflow/web --frozen-lockfile=false
 
 COPY apps/web ./apps/web
 
+RUN pnpm --filter @agentflow/web build
+
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@agentflow/web", "dev"]
+CMD ["pnpm", "--filter", "@agentflow/web", "start"]
