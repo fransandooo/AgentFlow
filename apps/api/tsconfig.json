@@ -4,9 +4,6 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "baseUrl": ".",
-    "paths": {
-      "@agentflow/types": ["../../packages/types/src/index.ts"]
-    },
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,

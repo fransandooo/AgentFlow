@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { GlobalTaskStatus } from '@agentflow/types';
+import { ActivityService } from '../activity/activity.service';
+import { EventsGateway } from '../websocket/websocket.gateway';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubtaskDto } from './dto/create-subtask.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -9,7 +11,11 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityService,
+    private readonly eventsGateway: EventsGateway,
+  ) {}
 
   async create(slug: string, dto: CreateTaskDto) {
     const project = await this.prisma.project.findUnique({ where: { slug } });
@@ -34,6 +40,30 @@ export class TasksService {
       },
       include: this.taskInclude,
     });
+
+    await this.activityService.enqueueTaskActivity({
+      taskId: task.id,
+      actorUserId: project.ownerId,
+      action: 'task_created',
+      metadata: {
+        projectId: project.id,
+        title: task.title,
+        status: task.status,
+      },
+    });
+
+    this.eventsGateway.emitTaskCreated(project.id, {
+      task,
+      projectId: project.id,
+    });
+
+    if (task.assigneeUserId || task.assigneeAgentId) {
+      this.eventsGateway.emitTaskAssigned(project.id, {
+        taskId: task.id,
+        assigneeId: task.assigneeAgentId ?? task.assigneeUserId,
+        assigneeType: task.assigneeAgentId ? 'AGENT' : 'HUMAN',
+      });
+    }
 
     return { data: task };
   }
@@ -94,7 +124,7 @@ export class TasksService {
   }
 
   async update(id: string, dto: UpdateTaskDto) {
-    await this.ensureExists(id);
+    const existing = await this.ensureExists(id);
 
     const task = await this.prisma.task.update({
       where: { id },
@@ -110,6 +140,60 @@ export class TasksService {
       },
       include: this.taskInclude,
     });
+
+    await this.activityService.enqueueTaskActivity({
+      taskId: task.id,
+      actorUserId: existing.project.ownerId,
+      action: 'task_updated',
+      metadata: {
+        before: {
+          title: existing.title,
+          description: existing.description,
+          status: existing.status,
+          priority: existing.priority,
+          assigneeUserId: existing.assigneeUserId,
+          assigneeAgentId: existing.assigneeAgentId,
+        },
+        after: {
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          assigneeUserId: task.assigneeUserId,
+          assigneeAgentId: task.assigneeAgentId,
+        },
+      },
+    });
+
+    this.eventsGateway.emitTaskUpdated(existing.projectId, {
+      taskId: task.id,
+      changes: dto,
+      actorId: existing.project.ownerId,
+      actorType: 'HUMAN',
+      task,
+    });
+
+    if (
+      existing.assigneeUserId !== task.assigneeUserId ||
+      existing.assigneeAgentId !== task.assigneeAgentId
+    ) {
+      this.eventsGateway.emitTaskAssigned(existing.projectId, {
+        taskId: task.id,
+        assigneeId: task.assigneeAgentId ?? task.assigneeUserId,
+        assigneeType: task.assigneeAgentId ? 'AGENT' : 'HUMAN',
+      });
+
+      if (task.assigneeAgentId) {
+        this.eventsGateway.emitAgentActivity(existing.projectId, {
+          agentId: task.assigneeAgentId,
+          taskId: task.id,
+          action: 'assigned',
+          metadata: {
+            previousAgentId: existing.assigneeAgentId ?? undefined,
+          },
+        });
+      }
+    }
 
     return { data: task };
   }
@@ -132,16 +216,42 @@ export class TasksService {
       include: this.taskInclude,
     });
 
-    await this.prisma.activityLog.create({
-      data: {
-        taskId: id,
-        actorUserId: existing.project.ownerId,
+    await this.activityService.enqueueTaskActivity({
+      taskId: id,
+      actorUserId: existing.project.ownerId,
+      action: 'status_changed',
+      metadata: {
+        from: existing.status,
+        to: dto.status,
+      },
+    });
+
+    this.eventsGateway.emitTaskStatusChanged(existing.projectId, {
+      taskId: id,
+      from: existing.status,
+      to: dto.status,
+      actorId: existing.project.ownerId,
+      actorType: 'HUMAN',
+    });
+
+    if (task.assigneeAgentId) {
+      this.eventsGateway.emitAgentActivity(existing.projectId, {
+        agentId: task.assigneeAgentId,
+        taskId: task.id,
         action: 'status_changed',
         metadata: {
           from: existing.status,
           to: dto.status,
         },
-      },
+      });
+    }
+
+    this.eventsGateway.emitTaskUpdated(existing.projectId, {
+      taskId: task.id,
+      changes: { status: dto.status, customStatusId: dto.customStatusId },
+      actorId: existing.project.ownerId,
+      actorType: 'HUMAN',
+      task,
     });
 
     return { data: task };
@@ -166,6 +276,22 @@ export class TasksService {
         createdById: parent.createdById,
       },
       include: this.taskInclude,
+    });
+
+    await this.activityService.enqueueTaskActivity({
+      taskId: subtask.id,
+      actorUserId: parent.project.ownerId,
+      action: 'subtask_created',
+      metadata: {
+        parentId: parent.id,
+        projectId: parent.projectId,
+      },
+    });
+
+    this.eventsGateway.emitTaskCreated(parent.projectId, {
+      task: subtask,
+      projectId: parent.projectId,
+      parentId: parent.id,
     });
 
     return { data: subtask };

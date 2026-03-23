@@ -4,12 +4,22 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "typescript": "^5.8.2"
   },
   "scripts": {
-    "build": "echo 'types build pending'",
+    "build": "tsc -p tsconfig.json",
     "lint": "echo 'types lint pending'",
     "format": "echo 'types format pending'",
-    "typecheck": "echo 'types typecheck pending'"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
