@@ -1,80 +1,108 @@
+import { CalendarDays, FolderOpen, ListChecks, MessageSquareText, TimerReset, UserRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { formatDate, priorityColor, statusColor } from '@/lib/utils';
+import { formatDate, formatPriority, formatStatus, priorityTone, statusTone } from '@/lib/utils';
 
 export function TaskDetail({ task }: { task: any }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-6">
-        <Card className="p-6">
-          <div className="mb-4 flex items-center gap-3">
-            <Badge className={statusColor(task.status)}>{task.status}</Badge>
-            <span className={`text-sm font-medium ${priorityColor(task.priority)}`}>{task.priority}</span>
+        <Card className="p-6 sm:p-8">
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            <Badge className={statusTone(task.status)}>{formatStatus(task.status)}</Badge>
+            <Badge className={`bg-white/5 ring-1 ring-inset ring-white/10 ${priorityTone(task.priority)}`}>{formatPriority(task.priority)}</Badge>
           </div>
-          <h1 className="text-2xl font-semibold">{task.title}</h1>
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-300">{task.description || 'Sin descripción'}</p>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Subtareas</h2>
-          <div className="space-y-3">
-            {task.subtasks?.length ? task.subtasks.map((subtask: any) => (
-              <div key={subtask.id} className="rounded-xl border border-border bg-background/40 p-3">
-                <p className="font-medium">{subtask.title}</p>
-                <p className="mt-1 text-sm text-muted">{subtask.status}</p>
-              </div>
-            )) : <p className="text-sm text-muted">No hay subtareas.</p>}
+          <div className="space-y-4">
+            <h1 className="text-3xl font-semibold tracking-tight text-primary">{task.title}</h1>
+            <p className="whitespace-pre-wrap text-[15px] leading-8 text-muted">
+              {task.description || 'No description has been written for this task yet.'}
+            </p>
           </div>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Comentarios</h2>
-          <div className="space-y-3">
-            {task.comments?.length ? task.comments.map((comment: any) => (
-              <div key={comment.id} className="rounded-xl border border-border bg-background/40 p-3">
-                <p className="text-xs text-muted">{comment.authorUser?.name || comment.authorAgent?.name || 'Sistema'} · {formatDate(comment.createdAt)}</p>
-                <p className="mt-2 text-sm text-slate-200">{comment.content}</p>
+        <SectionCard icon={<ListChecks className="h-5 w-5" />} title="Subtasks">
+          {task.subtasks?.length ? task.subtasks.map((subtask: any) => (
+            <div key={subtask.id} className="rounded-3xl border border-white/5 bg-background/30 px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="font-medium text-primary">{subtask.title}</p>
+                <Badge className={statusTone(subtask.status)}>{formatStatus(subtask.status)}</Badge>
               </div>
-            )) : <p className="text-sm text-muted">Sin comentarios.</p>}
-          </div>
-        </Card>
+            </div>
+          )) : <EmptyState text="No subtasks yet." />}
+        </SectionCard>
 
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">Actividad</h2>
-          <div className="space-y-3">
-            {task.activityLogs?.length ? task.activityLogs.map((log: any) => (
-              <div key={log.id} className="rounded-xl border border-border bg-background/40 p-3">
-                <p className="text-sm font-medium">{log.action}</p>
-                <p className="mt-1 text-xs text-muted">{formatDate(log.createdAt)}</p>
-              </div>
-            )) : <p className="text-sm text-muted">Sin actividad registrada.</p>}
-          </div>
-        </Card>
+        <SectionCard icon={<MessageSquareText className="h-5 w-5" />} title="Comments">
+          {task.comments?.length ? task.comments.map((comment: any) => (
+            <div key={comment.id} className="rounded-3xl border border-white/5 bg-background/30 px-5 py-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted">
+                {comment.authorUser?.name || comment.authorAgent?.name || 'System'} · {formatDate(comment.createdAt)}
+              </p>
+              <p className="mt-3 text-sm leading-7 text-primary">{comment.content}</p>
+            </div>
+          )) : <EmptyState text="No comments yet." />}
+        </SectionCard>
+
+        <SectionCard icon={<TimerReset className="h-5 w-5" />} title="Activity log">
+          {task.activityLogs?.length ? task.activityLogs.map((log: any) => (
+            <div key={log.id} className="rounded-3xl border border-white/5 bg-background/30 px-5 py-4">
+              <p className="text-sm font-medium text-primary">{formatStatus(log.action)}</p>
+              <p className="mt-2 text-xs uppercase tracking-[0.14em] text-muted">{formatDate(log.createdAt)}</p>
+            </div>
+          )) : <EmptyState text="No activity recorded yet." />}
+        </SectionCard>
       </div>
 
       <div>
-        <Card className="sticky top-24 p-6">
-          <h2 className="mb-4 text-lg font-semibold">Metadata</h2>
-          <dl className="space-y-4 text-sm">
-            <div>
-              <dt className="text-muted">Proyecto</dt>
-              <dd className="mt-1">{task.project?.name || '—'}</dd>
+        <Card className="sticky top-28 p-6 sm:p-7">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/10 bg-primary/10 text-primary">
+              <FolderOpen className="h-5 w-5" />
             </div>
             <div>
-              <dt className="text-muted">Asignado a</dt>
-              <dd className="mt-1">{task.assigneeAgent?.name || task.assigneeUser?.name || 'Sin asignar'}</dd>
+              <p className="text-xs uppercase tracking-spa text-muted">Task context</p>
+              <h2 className="text-xl font-semibold tracking-tight text-primary">Metadata</h2>
             </div>
-            <div>
-              <dt className="text-muted">Due date</dt>
-              <dd className="mt-1">{formatDate(task.dueDate)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted">Creada</dt>
-              <dd className="mt-1">{formatDate(task.createdAt)}</dd>
-            </div>
+          </div>
+          <dl className="space-y-5 text-sm">
+            <MetaRow icon={<FolderOpen className="h-4 w-4" />} label="Project" value={task.project?.name || '—'} />
+            <MetaRow icon={<UserRound className="h-4 w-4" />} label="Assigned to" value={task.assigneeAgent?.name || task.assigneeUser?.name || 'Unassigned'} />
+            <MetaRow icon={<CalendarDays className="h-4 w-4" />} label="Due date" value={formatDate(task.dueDate)} />
+            <MetaRow icon={<TimerReset className="h-4 w-4" />} label="Created" value={formatDate(task.createdAt)} />
           </dl>
         </Card>
       </div>
     </div>
   );
+}
+
+function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <Card className="p-6 sm:p-7">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-panelAlt text-primary">
+          {icon}
+        </div>
+        <h2 className="text-xl font-semibold tracking-tight text-primary">{title}</h2>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </Card>
+  );
+}
+
+function MetaRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-4 rounded-3xl border border-white/5 bg-background/25 px-4 py-4">
+      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full border border-white/5 bg-panelAlt text-primary">
+        {icon}
+      </div>
+      <div>
+        <dt className="text-[11px] uppercase tracking-[0.14em] text-muted">{label}</dt>
+        <dd className="mt-1 text-sm leading-6 text-primary">{value}</dd>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <p className="rounded-3xl border border-dashed border-white/10 px-5 py-5 text-sm text-muted">{text}</p>;
 }

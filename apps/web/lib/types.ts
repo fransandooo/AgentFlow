@@ -25,8 +25,16 @@ export interface TaskItem {
   assigneeAgentId?: string | null;
   dueDate?: string | null;
   projectId: string;
+  createdAt?: string;
   project?: { id: string; slug: string; name: string };
   assigneeUser?: { id: string; name: string } | null;
   assigneeAgent?: { id: string; name: string; type: string } | null;
   _count?: { subtasks: number; comments: number; activityLogs: number };
+}
+
+export interface CreateTaskPayload {
+  title: string;
+  description?: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status?: string;
 }
