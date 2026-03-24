@@ -41,6 +41,8 @@ export class TasksService {
       include: this.taskInclude,
     });
 
+    const enrichedTask = await this.enrichTask(task);
+
     await this.activityService.enqueueTaskActivity({
       taskId: task.id,
       actorUserId: project.ownerId,
@@ -53,7 +55,7 @@ export class TasksService {
     });
 
     this.eventsGateway.emitTaskCreated(project.id, {
-      task,
+      task: enrichedTask,
       projectId: project.id,
     });
 
@@ -65,7 +67,7 @@ export class TasksService {
       });
     }
 
-    return { data: task };
+    return { data: enrichedTask };
   }
 
   async findAll(slug: string, query: ListTasksDto) {
@@ -84,10 +86,10 @@ export class TasksService {
         assigneeAgentId: query.assigneeAgentId,
       },
       include: this.taskInclude,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
 
-    return { data: tasks, meta: { projectId: project.id, filters: query } };
+    return { data: await this.enrichTasks(tasks), meta: { projectId: project.id, filters: query } };
   }
 
   async findOne(id: string) {
@@ -120,7 +122,15 @@ export class TasksService {
       throw new NotFoundException(`Task ${id} not found`);
     }
 
-    return { data: task };
+    const enriched = await this.enrichTask(task);
+    const subtasks = task.subtasks ? await this.enrichTasks(task.subtasks) : [];
+
+    return {
+      data: {
+        ...enriched,
+        subtasks,
+      },
+    };
   }
 
   async update(id: string, dto: UpdateTaskDto) {
@@ -140,6 +150,8 @@ export class TasksService {
       },
       include: this.taskInclude,
     });
+
+    const enrichedTask = await this.enrichTask(task);
 
     await this.activityService.enqueueTaskActivity({
       taskId: task.id,
@@ -170,7 +182,7 @@ export class TasksService {
       changes: dto,
       actorId: existing.project.ownerId,
       actorType: 'HUMAN',
-      task,
+      task: enrichedTask,
     });
 
     if (
@@ -195,7 +207,7 @@ export class TasksService {
       }
     }
 
-    return { data: task };
+    return { data: enrichedTask };
   }
 
   async remove(id: string) {
@@ -216,6 +228,8 @@ export class TasksService {
       include: this.taskInclude,
     });
 
+    const enrichedTask = await this.enrichTask(task);
+
     await this.activityService.enqueueTaskActivity({
       taskId: id,
       actorUserId: existing.project.ownerId,
@@ -232,6 +246,7 @@ export class TasksService {
       to: dto.status,
       actorId: existing.project.ownerId,
       actorType: 'HUMAN',
+      task: enrichedTask,
     });
 
     if (task.assigneeAgentId) {
@@ -251,10 +266,10 @@ export class TasksService {
       changes: { status: dto.status, customStatusId: dto.customStatusId },
       actorId: existing.project.ownerId,
       actorType: 'HUMAN',
-      task,
+      task: enrichedTask,
     });
 
-    return { data: task };
+    return { data: enrichedTask };
   }
 
   async createSubtask(id: string, dto: CreateSubtaskDto) {
@@ -278,6 +293,8 @@ export class TasksService {
       include: this.taskInclude,
     });
 
+    const enrichedSubtask = await this.enrichTask(subtask);
+
     await this.activityService.enqueueTaskActivity({
       taskId: subtask.id,
       actorUserId: parent.project.ownerId,
@@ -289,12 +306,12 @@ export class TasksService {
     });
 
     this.eventsGateway.emitTaskCreated(parent.projectId, {
-      task: subtask,
+      task: enrichedSubtask,
       projectId: parent.projectId,
       parentId: parent.id,
     });
 
-    return { data: subtask };
+    return { data: enrichedSubtask };
   }
 
   async getActivity(id: string) {
@@ -325,6 +342,41 @@ export class TasksService {
     }
 
     return task;
+  }
+
+  private async enrichTask(task: any) {
+    const numbered = await this.computeDisplayIds(task.projectId);
+    return {
+      ...task,
+      displayId: numbered.get(task.id),
+    };
+  }
+
+  private async enrichTasks(tasks: any[]) {
+    if (!tasks.length) return tasks;
+    const projectId = tasks[0].projectId;
+    const numbered = await this.computeDisplayIds(projectId);
+    return tasks.map((task) => ({
+      ...task,
+      displayId: numbered.get(task.id),
+    }));
+  }
+
+  private async computeDisplayIds(projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    const tasks = await this.prisma.task.findMany({
+      where: { projectId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+
+    const prefix = (project?.slug || 'task')
+      .split(/[-_]/)
+      .map((part) => part.slice(0, 2).toUpperCase())
+      .join('')
+      .slice(0, 4) || 'TASK';
+
+    return new Map(tasks.map((task, index) => [task.id, `${prefix}-${index + 1}`]));
   }
 
   private readonly taskInclude = {

@@ -1,24 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowUpRight,
-  CircleEllipsis,
-  CircleOff,
-  GripVertical,
-  LoaderCircle,
-  Plus,
-  ShieldAlert,
-  Sparkles,
-  UserRound,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, GripVertical, Plus, UserRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CreateTaskModal } from '@/components/board/create-task-modal';
 import { createSocket } from '@/lib/socket';
-import { formatPriority, formatStatus, priorityTone, statusTone } from '@/lib/utils';
+import { formatPriority, formatStatus, priorityTone } from '@/lib/utils';
 import { useAppStore } from '@/store/app-store';
 import { TaskItem } from '@/lib/types';
 
@@ -42,6 +32,7 @@ export function KanbanBoard({
   const { boardTasks, setBoardTasks, upsertTask, moveTaskStatus, isCreatingTask, setCreatingTask } = useAppStore();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setBoardTasks(initialTasks);
@@ -77,33 +68,65 @@ export function KanbanBoard({
     });
 
     const payload = await response.json().catch(() => null);
-    if (payload?.data) {
-      upsertTask(payload.data);
-    }
+    if (payload?.data) upsertTask(payload.data);
 
     setDraggedTaskId(null);
     setSavingTaskId(null);
   }
 
+  function scrollByAmount(direction: 'left' | 'right') {
+    scrollerRef.current?.scrollBy({
+      left: direction === 'left' ? -380 : 380,
+      behavior: 'smooth',
+    });
+  }
+
+  function scrollToColumn(columnId: string) {
+    const node = document.getElementById(`column-${columnId}`);
+    node?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+  }
+
   return (
     <>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm leading-7 text-muted">Drag cards between columns to update the task state instantly.</p>
+      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between xl:flex-1">
+          <p className="text-sm leading-7 text-muted">Move through the board sideways and drag cards between columns.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {normalizedColumns.map((column) => (
+              <button
+                key={column.id}
+                type="button"
+                onClick={() => scrollToColumn(column.id)}
+                className="rounded-full border border-white/8 bg-panelAlt px-3 py-2 text-xs uppercase tracking-[0.12em] text-muted transition hover:text-primary"
+              >
+                {formatStatus(column.name)}
+              </button>
+            ))}
+          </div>
         </div>
-        <Button className="gap-2" onClick={() => setCreatingTask(true)}>
-          <Plus className="h-4 w-4" /> New task
-        </Button>
+
+        <div className="flex items-center gap-2 self-start xl:self-auto">
+          <Button className="bg-transparent px-3 text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/10" onClick={() => scrollByAmount('left')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <Button className="bg-transparent px-3 text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/10" onClick={() => scrollByAmount('right')}>
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Button className="gap-2" onClick={() => setCreatingTask(true)}>
+            <Plus className="h-4 w-4" /> New task
+          </Button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto pb-2">
-        <div className="grid min-w-[1120px] gap-5 xl:grid-cols-4 2xl:grid-cols-7">
+      <div ref={scrollerRef} className="overflow-x-auto pb-3">
+        <div className="grid auto-cols-[340px] grid-flow-col gap-5 min-w-max pr-4">
           {normalizedColumns.map((column) => {
             const tasks = boardTasks.filter((task) => normalizeStatus(task.status) === column.normalizedStatus);
             return (
               <section
+                id={`column-${column.id}`}
                 key={column.id}
-                className="rounded-[28px] border border-white/5 bg-panelAlt/70 p-4 shadow-panel"
+                className="rounded-[28px] border border-white/5 bg-panelAlt/70 p-4 shadow-panel lg:p-5"
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => handleDrop(column.normalizedStatus)}
               >
@@ -124,38 +147,43 @@ export function KanbanBoard({
                       onDragEnd={() => setDraggedTaskId(null)}
                     >
                       <Link href={`/tasks/${task.id}`}>
-                        <Card className="group p-5 transition duration-200 hover:border-primary/20 hover:bg-background/40">
-                          <div className="space-y-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-3">
-                                <div className="mt-0.5 text-muted">
+                        <Card className="group min-h-[208px] p-5 transition duration-200 hover:border-primary/20 hover:bg-background/40">
+                          <div className="flex h-full flex-col justify-between gap-5">
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-2 text-muted">
                                   <GripVertical className="h-4 w-4" />
+                                  <span className="text-[11px] uppercase tracking-[0.16em] text-muted">{task.displayId || task.id.slice(0, 8)}</span>
                                 </div>
-                                <div className="space-y-2">
-                                  <p className="text-base font-medium leading-6 text-primary transition group-hover:text-white">
-                                    {task.title}
-                                  </p>
-                                  <p className="line-clamp-2 text-sm leading-6 text-muted">
-                                    {task.description || 'No extra context yet.'}
-                                  </p>
-                                </div>
+                                <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-muted transition group-hover:text-primary" />
                               </div>
-                              <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-muted transition group-hover:text-primary" />
+
+                              <div className="space-y-2">
+                                <p className="text-base font-medium leading-6 text-primary transition group-hover:text-white">
+                                  {task.title}
+                                </p>
+                                <p className="line-clamp-3 text-sm leading-6 text-muted">
+                                  {task.description || 'No extra context yet.'}
+                                </p>
+                              </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
-                              <Badge className={statusTone(task.status)}>{formatStatus(task.status)}</Badge>
-                              <Badge className={`bg-white/5 ring-1 ring-inset ring-white/10 ${priorityTone(task.priority)}`}>
-                                {formatPriority(task.priority)}
-                              </Badge>
-                              {savingTaskId === task.id ? (
-                                <Badge className="bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">Saving</Badge>
-                              ) : null}
-                            </div>
+                            <div className="flex items-end justify-between gap-3">
+                              <div className="flex flex-wrap gap-2">
+                                <Badge className={`bg-white/5 ring-1 ring-inset ring-white/10 ${priorityTone(task.priority)}`}>
+                                  {formatPriority(task.priority)}
+                                </Badge>
+                                {savingTaskId === task.id ? (
+                                  <Badge className="bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">Saving</Badge>
+                                ) : null}
+                              </div>
 
-                            <div className="grid gap-3 rounded-3xl border border-white/5 bg-background/20 p-4 text-sm sm:grid-cols-2">
-                              <InfoRow icon={statusIcon(task.status)} label="State" value={formatStatus(task.status)} />
-                              <InfoRow icon={<UserRound className="h-4 w-4" />} label="Owner" value={task.assigneeAgent?.name || task.assigneeUser?.name || 'Unassigned'} />
+                              <div className="inline-flex items-center gap-2 rounded-full border border-white/5 bg-background/30 px-3 py-2 text-sm text-primary">
+                                <UserRound className="h-4 w-4" />
+                                <span className="max-w-[130px] truncate text-xs text-muted">
+                                  {task.assigneeAgent?.name || task.assigneeUser?.name || 'Unassigned'}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </Card>
@@ -177,35 +205,6 @@ export function KanbanBoard({
       />
     </>
   );
-}
-
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/5 bg-panel text-primary">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-[0.14em] text-muted">{label}</p>
-        <p className="truncate text-sm text-primary">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function statusIcon(status: string) {
-  switch (status) {
-    case 'IN_PROGRESS':
-      return <LoaderCircle className="h-4 w-4" />;
-    case 'BLOCKED':
-      return <ShieldAlert className="h-4 w-4" />;
-    case 'DONE':
-      return <Sparkles className="h-4 w-4" />;
-    case 'REVIEW':
-      return <CircleEllipsis className="h-4 w-4" />;
-    default:
-      return <CircleOff className="h-4 w-4" />;
-  }
 }
 
 function normalizeStatus(value: string) {

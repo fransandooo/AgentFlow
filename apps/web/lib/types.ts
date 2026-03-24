@@ -17,6 +17,7 @@ export interface ProjectSummary {
 
 export interface TaskItem {
   id: string;
+  displayId?: string;
   title: string;
   description?: string | null;
   status: string;

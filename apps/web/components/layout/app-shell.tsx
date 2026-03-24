@@ -10,7 +10,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-white/5 bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1880px] flex-col gap-4 px-3 py-4 sm:px-5 lg:px-6 xl:px-8">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-primary">
@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">{children}</main>
+      <main className="mx-auto w-full max-w-[1880px] px-3 py-8 sm:px-5 lg:px-6 xl:px-8 lg:py-10">{children}</main>
     </div>
   );
 }
