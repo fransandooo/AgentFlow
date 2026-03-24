@@ -21,6 +21,7 @@ export class AgentsService {
         isActive: dto.isActive ?? true,
         apiKeyHash,
       },
+      include: { team: true },
     });
 
     return {
@@ -35,11 +36,20 @@ export class AgentsService {
     const agents = await this.prisma.agent.findMany({
       include: {
         team: true,
+        activityLogs: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return { data: agents };
+    return {
+      data: agents.map((agent) => ({
+        ...agent,
+        lastActivity: agent.activityLogs[0]?.createdAt || null,
+      })),
+    };
   }
 
   async findOne(id: string) {
@@ -53,6 +63,21 @@ export class AgentsService {
     }
 
     return { data: agent };
+  }
+
+  async getActivity(id: string) {
+    await this.ensureExists(id);
+
+    const items = await this.prisma.activityLog.findMany({
+      where: { actorAgentId: id },
+      include: {
+        task: { include: { project: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return { data: items };
   }
 
   async update(id: string, dto: UpdateAgentDto) {

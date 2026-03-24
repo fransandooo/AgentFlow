@@ -22,6 +22,11 @@ export class AgentsController {
     return this.agentsService.findOne(id);
   }
 
+  @Get(':id/activity')
+  getActivity(@Param('id') id: string) {
+    return this.agentsService.getActivity(id);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateAgentDto) {
     return this.agentsService.update(id, dto);
