@@ -5,7 +5,7 @@ export function Card({ className, children }: { className?: string; children: Re
   return (
     <div
       className={cn(
-        'rounded-[28px] border border-border/90 bg-panel/88 shadow-panel backdrop-blur-sm',
+        'rounded-[6px] border border-border bg-panel shadow-panel',
         className,
       )}
     >

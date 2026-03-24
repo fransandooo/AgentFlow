@@ -6,6 +6,7 @@ import { AgentItem, TeamItem } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 export function AgentsManager({ initialAgents, teams }: { initialAgents: AgentItem[]; teams: TeamItem[] }) {
   const [agents, setAgents] = useState<AgentItem[]>(initialAgents || []);
@@ -50,19 +51,19 @@ export function AgentsManager({ initialAgents, teams }: { initialAgents: AgentIt
         <div className="mt-5 space-y-4">
           <Input placeholder="Agent-Coder-02" value={name} onChange={(e) => setName(e.target.value)} />
           <Input placeholder="coder" value={type} onChange={(e) => setType(e.target.value)} />
-          <select value={teamId} onChange={(e) => setTeamId(e.target.value)} className="min-h-12 w-full rounded-2xl border border-border bg-panelAlt px-4 py-3 text-sm text-white outline-none">
+          <Select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
             <option value="">No team</option>
             {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
-          </select>
+          </Select>
           <Button className="w-full gap-2" onClick={createAgent}><Plus className="h-4 w-4" />Create agent</Button>
         </div>
 
         {plainKey ? (
-          <div className="mt-6 rounded-3xl border border-primary/15 bg-primary/10 p-4">
+          <div className="mt-6 rounded-[6px] border border-accent/20 bg-[#EEF4FB] p-4">
             <p className="text-xs uppercase tracking-spa text-muted">API key shown once</p>
             <div className="mt-3 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate text-sm text-primary">{plainKey}</code>
-              <button onClick={() => navigator.clipboard.writeText(plainKey)} className="rounded-full border border-white/10 p-2 text-primary"><Copy className="h-4 w-4" /></button>
+              <button onClick={() => navigator.clipboard.writeText(plainKey)} className="rounded-[6px] border border-border p-2 text-primary"><Copy className="h-4 w-4" /></button>
             </div>
           </div>
         ) : null}
@@ -78,14 +79,14 @@ export function AgentsManager({ initialAgents, teams }: { initialAgents: AgentIt
                 <p className="mt-2 text-xs uppercase tracking-[0.14em] text-muted">{agent.isActive ? 'Active' : 'Idle'}</p>
               </div>
               <div className="flex gap-2">
-                <Button className="bg-transparent text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/10" onClick={() => rotate(agent.id)}><KeyRound className="mr-2 h-4 w-4" />Rotate key</Button>
-                <Button className="bg-transparent text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/10" onClick={() => loadActivity(agent.id)}><RefreshCcw className="mr-2 h-4 w-4" />Activity</Button>
+                <Button className="border-border bg-panelAlt text-primary hover:bg-[#E9EEF5]" onClick={() => rotate(agent.id)}><KeyRound className="mr-2 h-4 w-4" />Rotate key</Button>
+                <Button className="border-border bg-panelAlt text-primary hover:bg-[#E9EEF5]" onClick={() => loadActivity(agent.id)}><RefreshCcw className="mr-2 h-4 w-4" />Activity</Button>
               </div>
             </div>
             {activity[agent.id]?.length ? (
               <div className="mt-4 space-y-3">
                 {activity[agent.id].slice(0, 5).map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-white/5 bg-background/25 px-4 py-3 text-sm text-muted">
+                  <div key={item.id} className="rounded-[6px] border border-border bg-panelAlt px-4 py-3 text-sm text-muted">
                     {item.action} · {item.task?.title || 'No task'}
                   </div>
                 ))}

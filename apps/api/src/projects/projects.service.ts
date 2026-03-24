@@ -106,6 +106,9 @@ export class ProjectsService {
       include: {
         assigneeUser: true,
         assigneeAgent: true,
+        parent: {
+          select: { id: true, title: true },
+        },
         subtasks: {
           select: { id: true, status: true },
         },

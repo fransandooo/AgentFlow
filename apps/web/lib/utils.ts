@@ -26,23 +26,23 @@ export function formatPriority(priority?: string | null) {
 
 export function statusTone(status?: string | null) {
   const map: Record<string, string> = {
-    BACKLOG: 'bg-stone-200/8 text-stone-200 ring-1 ring-inset ring-stone-100/10',
-    TODO: 'bg-stone-200/8 text-stone-50 ring-1 ring-inset ring-stone-100/10',
-    IN_PROGRESS: 'bg-stone-100/10 text-stone-50 ring-1 ring-inset ring-stone-100/15',
-    REVIEW: 'bg-amber-100/10 text-amber-50 ring-1 ring-inset ring-amber-100/15',
-    DONE: 'bg-emerald-100/10 text-emerald-50 ring-1 ring-inset ring-emerald-100/15',
-    BLOCKED: 'bg-rose-100/10 text-rose-50 ring-1 ring-inset ring-rose-100/15',
-    CANCELLED: 'bg-zinc-100/10 text-zinc-300 ring-1 ring-inset ring-zinc-100/10',
+    BACKLOG: 'bg-slate-100 text-primary border border-border',
+    TODO: 'bg-slate-100 text-primary border border-border',
+    IN_PROGRESS: 'bg-blue-50 text-accent border border-blue-100',
+    REVIEW: 'bg-amber-50 text-warning border border-amber-200',
+    DONE: 'bg-emerald-50 text-success border border-emerald-200',
+    BLOCKED: 'bg-rose-50 text-danger border border-rose-200',
+    CANCELLED: 'bg-slate-100 text-muted border border-border',
   };
-  return map[status ?? ''] ?? 'bg-stone-200/8 text-stone-50 ring-1 ring-inset ring-stone-100/10';
+  return map[status ?? ''] ?? 'bg-slate-100 text-primary border border-border';
 }
 
 export function priorityTone(priority?: string | null) {
   const map: Record<string, string> = {
-    LOW: 'text-stone-300',
-    MEDIUM: 'text-stone-100',
-    HIGH: 'text-amber-100',
-    URGENT: 'text-rose-100',
+    LOW: 'text-muted',
+    MEDIUM: 'text-accent',
+    HIGH: 'text-warning',
+    URGENT: 'text-danger',
   };
-  return map[priority ?? ''] ?? 'text-stone-300';
+  return map[priority ?? ''] ?? 'text-muted';
 }

@@ -30,6 +30,7 @@ export interface TaskItem {
   project?: { id: string; slug: string; name: string };
   assigneeUser?: { id: string; name: string } | null;
   assigneeAgent?: { id: string; name: string; type: string; teamId?: string | null } | null;
+  parent?: { id: string; title: string } | null;
   subtaskProgress?: { total: number; done: number };
   _count?: { subtasks: number; comments: number; activityLogs: number };
 }

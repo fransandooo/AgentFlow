@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { CreateTaskPayload, TaskItem } from '@/lib/types';
 
 export function CreateTaskModal({
@@ -48,14 +49,14 @@ export function CreateTaskModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(26,43,73,.24)] p-4 backdrop-blur-[2px]">
       <Card className="w-full max-w-xl p-6 sm:p-7">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-spa text-muted">New task</p>
             <h3 className="mt-2 text-2xl font-semibold text-primary">Create task</h3>
           </div>
-          <button onClick={onClose} className="rounded-full border border-white/10 p-2 text-muted hover:text-primary">
+          <button onClick={onClose} className="rounded-[6px] border border-border p-2 text-muted hover:text-primary">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -72,27 +73,23 @@ export function CreateTaskModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the task"
-              className="min-h-32 w-full rounded-2xl border border-border bg-panelAlt px-4 py-3 text-sm text-white outline-none placeholder:text-muted/65 focus:border-primary/40"
+              className="min-h-32 w-full rounded-[6px] border border-border bg-white px-3 py-3 text-sm text-primary outline-none placeholder:text-muted/80 focus:border-accent"
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm text-muted">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT')}
-              className="min-h-12 w-full rounded-2xl border border-border bg-panelAlt px-4 py-3 text-sm text-white outline-none focus:border-primary/40"
-            >
+            <Select value={priority} onChange={(e) => setPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT')}>
               <option value="LOW">Low</option>
               <option value="MEDIUM">Medium</option>
               <option value="HIGH">High</option>
               <option value="URGENT">Urgent</option>
-            </select>
+            </Select>
           </div>
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <Button className="bg-transparent text-primary ring-1 ring-inset ring-primary/20 hover:bg-primary/10" onClick={onClose} type="button">
+          <Button className="border-border bg-panelAlt text-primary hover:bg-[#E9EEF5]" onClick={onClose} type="button">
             Cancel
           </Button>
           <Button onClick={submit} type="button" disabled={loading || !title.trim()}>

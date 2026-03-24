@@ -20,11 +20,11 @@ export default async function ProjectBoardPage({ params, searchParams }: { param
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-primary sm:text-4xl">{project.name}</h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-muted sm:text-[15px]">Espacio de ejecución en tiempo real, diseñado para lectura rápida, foco alto y seguimiento elegante.</p>
           <form className="mt-6">
-            <select name="teamId" defaultValue={searchParams?.teamId || ''} className="min-h-12 rounded-2xl border border-border bg-panelAlt px-4 py-3 text-sm text-white outline-none">
+            <select name="teamId" defaultValue={searchParams?.teamId || ''} className="min-h-10 rounded-[6px] border border-border bg-white px-4 py-2 text-sm text-primary outline-none focus:border-accent">
               <option value="">All teams</option>
               {teams.map((team: any) => <option key={team.id} value={team.id}>{team.name}</option>)}
             </select>
-            <button className="ml-3 rounded-full border border-primary/20 px-4 py-2 text-sm text-primary">Filter</button>
+            <button className="ml-3 rounded-[6px] border border-primary bg-primary px-4 py-2 text-sm font-medium text-white transition duration-200 hover:bg-accent hover:border-accent">Filter</button>
           </form>
         </Card>
 
