@@ -29,7 +29,7 @@ export class TasksService {
         projectId: project.id,
         title: dto.title,
         description: dto.description,
-        status: dto.status ?? GlobalTaskStatus.TODO,
+        status: dto.status ?? GlobalTaskStatus.BACKLOG,
         customStatusId: dto.customStatusId,
         priority: dto.priority,
         assigneeUserId: dto.assigneeUserId,
@@ -281,7 +281,7 @@ export class TasksService {
         parentId: parent.id,
         title: dto.title ?? 'Untitled subtask',
         description: dto.description,
-        status: dto.status ?? GlobalTaskStatus.TODO,
+        status: dto.status ?? GlobalTaskStatus.BACKLOG,
         customStatusId: dto.customStatusId,
         priority: dto.priority ?? parent.priority,
         assigneeUserId: dto.assigneeUserId,
@@ -370,13 +370,13 @@ export class TasksService {
       select: { id: true },
     });
 
-    const prefix = (project?.slug || 'task')
-      .split(/[-_]/)
-      .map((part) => part.slice(0, 2).toUpperCase())
-      .join('')
-      .slice(0, 4) || 'TASK';
+    const prefix = (project?.slug || 'back')
+      .split(/[-_]/)[0]
+      .replace(/[^a-zA-Z]/g, '')
+      .toUpperCase()
+      .slice(0, 4) || 'BACK';
 
-    return new Map(tasks.map((task, index) => [task.id, `${prefix}-${index + 1}`]));
+    return new Map(tasks.map((task, index) => [task.id, `${prefix}-${111 + index}`]));
   }
 
   private readonly taskInclude = {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, ArrowUpRight, GripVertical, Plus, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, GripVertical, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -178,11 +178,8 @@ export function KanbanBoard({
                                 ) : null}
                               </div>
 
-                              <div className="inline-flex items-center gap-2 rounded-full border border-white/5 bg-background/30 px-3 py-2 text-sm text-primary">
-                                <UserRound className="h-4 w-4" />
-                                <span className="max-w-[130px] truncate text-xs text-muted">
-                                  {task.assigneeAgent?.name || task.assigneeUser?.name || 'Unassigned'}
-                                </span>
+                              <div className="flex h-10 min-w-10 items-center justify-center rounded-full border border-white/5 bg-gradient-to-br from-primary/30 to-primary/10 text-[11px] font-semibold text-primary shadow-sm">
+                                {ownerInitials(task)}
                               </div>
                             </div>
                           </div>
@@ -209,4 +206,15 @@ export function KanbanBoard({
 
 function normalizeStatus(value: string) {
   return value.toUpperCase().replace(/\s+/g, '_');
+}
+
+function ownerInitials(task: TaskItem) {
+  const name = task.assigneeAgent?.name || task.assigneeUser?.name;
+  if (!name) return 'NA';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((chunk) => chunk[0]?.toUpperCase() || '')
+    .join('');
 }
