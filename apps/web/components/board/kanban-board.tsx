@@ -178,8 +178,13 @@ export function KanbanBoard({
                                 ) : null}
                               </div>
 
-                              <div className="flex h-10 min-w-10 items-center justify-center rounded-full border border-white/5 bg-gradient-to-br from-primary/30 to-primary/10 text-[11px] font-semibold text-primary shadow-sm">
-                                {ownerInitials(task)}
+                              <div className="inline-flex items-center gap-2 rounded-full border border-white/5 bg-background/30 px-2 py-2 pr-3 text-primary shadow-sm">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 to-primary/10 text-[11px] font-semibold text-primary">
+                                  {ownerInitials(task)}
+                                </div>
+                                <span className="max-w-[132px] truncate text-xs text-muted">
+                                  {task.assigneeAgent?.name || task.assigneeUser?.name || 'Unassigned'}
+                                </span>
                               </div>
                             </div>
                           </div>
