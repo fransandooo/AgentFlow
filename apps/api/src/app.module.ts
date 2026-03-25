@@ -7,6 +7,7 @@ import { CommentsModule } from './comments/comments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
+import { RedisModule } from './redis/redis.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TeamsModule } from './teams/teams.module';
 import { UsersModule } from './users/users.module';
@@ -16,6 +17,7 @@ import { WebsocketModule } from './websocket/websocket.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    RedisModule,
     AuthModule,
     UsersModule,
     AgentsModule,

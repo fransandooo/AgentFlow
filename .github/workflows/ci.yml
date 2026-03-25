@@ -1,13 +1,38 @@
 name: CI
 
 on:
-  push:
   pull_request:
+    branches: [develop]
 
 jobs:
-  placeholder:
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Placeholder
-        run: echo 'CI scaffold pending'
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Typecheck API
+        run: pnpm --filter @agentflow/api typecheck
+
+      - name: Typecheck Web
+        run: pnpm --filter @agentflow/web typecheck
+
+      - name: Build API
+        run: pnpm --filter @agentflow/api build
+
+      - name: Build Web
+        run: pnpm --filter @agentflow/web build

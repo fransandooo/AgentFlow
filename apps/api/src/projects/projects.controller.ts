@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
@@ -33,7 +33,7 @@ export class ProjectsController {
   }
 
   @Get(':slug/board')
-  getBoard(@Param('slug') slug: string) {
-    return this.projectsService.getBoard(slug);
+  getBoard(@Param('slug') slug: string, @Query('teamId') teamId?: string) {
+    return this.projectsService.getBoard(slug, teamId);
   }
 }

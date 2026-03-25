@@ -79,25 +79,43 @@ export class ProjectsService {
     return { data: { slug, deleted: true } };
   }
 
-  async getBoard(slug: string) {
+  async getBoard(slug: string, teamId?: string) {
     const project = await this.prisma.project.findUnique({
       where: { slug },
       include: {
         customStatuses: { orderBy: { order: 'asc' } },
-        tasks: {
-          include: {
-            assigneeUser: true,
-            assigneeAgent: true,
-            _count: { select: { subtasks: true } },
-          },
-          orderBy: { updatedAt: 'desc' },
-        },
       },
     });
 
     if (!project) {
       throw new NotFoundException(`Project ${slug} not found`);
     }
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        projectId: project.id,
+        ...(teamId
+          ? {
+              OR: [
+                { assigneeAgent: { teamId } },
+                { assigneeUser: { teamMemberships: { some: { teamId } } } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        assigneeUser: true,
+        assigneeAgent: true,
+        parent: {
+          select: { id: true, title: true },
+        },
+        subtasks: {
+          select: { id: true, status: true },
+        },
+        _count: { select: { subtasks: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
 
     const defaultColumns = Object.values(GlobalTaskStatus).map((status, index) => ({
       id: status,
@@ -125,7 +143,14 @@ export class ProjectsService {
           color: project.color,
         },
         columns: project.customStatuses.length ? customColumns : defaultColumns,
-        tasks: project.tasks,
+        tasks: tasks.map((task, index) => ({
+          ...task,
+          displayId: `${(project.slug.split(/[-_]/)[0] || 'BACK').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'BACK'}-${111 + index}`,
+          subtaskProgress: {
+            total: task.subtasks.length,
+            done: task.subtasks.filter((subtask) => subtask.status === 'DONE').length,
+          },
+        })),
       },
     };
   }

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { GlobalTaskStatus } from '@agentflow/types';
+import { ActivityService } from '../activity/activity.service';
+import { EventsGateway } from '../websocket/websocket.gateway';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubtaskDto } from './dto/create-subtask.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -9,7 +11,11 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityService,
+    private readonly eventsGateway: EventsGateway,
+  ) {}
 
   async create(slug: string, dto: CreateTaskDto) {
     const project = await this.prisma.project.findUnique({ where: { slug } });
@@ -23,7 +29,7 @@ export class TasksService {
         projectId: project.id,
         title: dto.title,
         description: dto.description,
-        status: dto.status ?? GlobalTaskStatus.TODO,
+        status: dto.status ?? GlobalTaskStatus.BACKLOG,
         customStatusId: dto.customStatusId,
         priority: dto.priority,
         assigneeUserId: dto.assigneeUserId,
@@ -35,7 +41,33 @@ export class TasksService {
       include: this.taskInclude,
     });
 
-    return { data: task };
+    const enrichedTask = await this.enrichTask(task);
+
+    await this.activityService.enqueueTaskActivity({
+      taskId: task.id,
+      actorUserId: project.ownerId,
+      action: 'task_created',
+      metadata: {
+        projectId: project.id,
+        title: task.title,
+        status: task.status,
+      },
+    });
+
+    this.eventsGateway.emitTaskCreated(project.id, {
+      task: enrichedTask,
+      projectId: project.id,
+    });
+
+    if (task.assigneeUserId || task.assigneeAgentId) {
+      this.eventsGateway.emitTaskAssigned(project.id, {
+        taskId: task.id,
+        assigneeId: task.assigneeAgentId ?? task.assigneeUserId,
+        assigneeType: task.assigneeAgentId ? 'AGENT' : 'HUMAN',
+      });
+    }
+
+    return { data: enrichedTask };
   }
 
   async findAll(slug: string, query: ListTasksDto) {
@@ -54,10 +86,10 @@ export class TasksService {
         assigneeAgentId: query.assigneeAgentId,
       },
       include: this.taskInclude,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
 
-    return { data: tasks, meta: { projectId: project.id, filters: query } };
+    return { data: await this.enrichTasks(tasks), meta: { projectId: project.id, filters: query } };
   }
 
   async findOne(id: string) {
@@ -90,11 +122,19 @@ export class TasksService {
       throw new NotFoundException(`Task ${id} not found`);
     }
 
-    return { data: task };
+    const enriched = await this.enrichTask(task);
+    const subtasks = task.subtasks ? await this.enrichTasks(task.subtasks) : [];
+
+    return {
+      data: {
+        ...enriched,
+        subtasks,
+      },
+    };
   }
 
   async update(id: string, dto: UpdateTaskDto) {
-    await this.ensureExists(id);
+    const existing = await this.ensureExists(id);
 
     const task = await this.prisma.task.update({
       where: { id },
@@ -111,7 +151,63 @@ export class TasksService {
       include: this.taskInclude,
     });
 
-    return { data: task };
+    const enrichedTask = await this.enrichTask(task);
+
+    await this.activityService.enqueueTaskActivity({
+      taskId: task.id,
+      actorUserId: existing.project.ownerId,
+      action: 'task_updated',
+      metadata: {
+        before: {
+          title: existing.title,
+          description: existing.description,
+          status: existing.status,
+          priority: existing.priority,
+          assigneeUserId: existing.assigneeUserId,
+          assigneeAgentId: existing.assigneeAgentId,
+        },
+        after: {
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          assigneeUserId: task.assigneeUserId,
+          assigneeAgentId: task.assigneeAgentId,
+        },
+      },
+    });
+
+    this.eventsGateway.emitTaskUpdated(existing.projectId, {
+      taskId: task.id,
+      changes: dto,
+      actorId: existing.project.ownerId,
+      actorType: 'HUMAN',
+      task: enrichedTask,
+    });
+
+    if (
+      existing.assigneeUserId !== task.assigneeUserId ||
+      existing.assigneeAgentId !== task.assigneeAgentId
+    ) {
+      this.eventsGateway.emitTaskAssigned(existing.projectId, {
+        taskId: task.id,
+        assigneeId: task.assigneeAgentId ?? task.assigneeUserId,
+        assigneeType: task.assigneeAgentId ? 'AGENT' : 'HUMAN',
+      });
+
+      if (task.assigneeAgentId) {
+        this.eventsGateway.emitAgentActivity(existing.projectId, {
+          agentId: task.assigneeAgentId,
+          taskId: task.id,
+          action: 'assigned',
+          metadata: {
+            previousAgentId: existing.assigneeAgentId ?? undefined,
+          },
+        });
+      }
+    }
+
+    return { data: enrichedTask };
   }
 
   async remove(id: string) {
@@ -132,19 +228,48 @@ export class TasksService {
       include: this.taskInclude,
     });
 
-    await this.prisma.activityLog.create({
-      data: {
-        taskId: id,
-        actorUserId: existing.project.ownerId,
+    const enrichedTask = await this.enrichTask(task);
+
+    await this.activityService.enqueueTaskActivity({
+      taskId: id,
+      actorUserId: existing.project.ownerId,
+      action: 'status_changed',
+      metadata: {
+        from: existing.status,
+        to: dto.status,
+      },
+    });
+
+    this.eventsGateway.emitTaskStatusChanged(existing.projectId, {
+      taskId: id,
+      from: existing.status,
+      to: dto.status,
+      actorId: existing.project.ownerId,
+      actorType: 'HUMAN',
+      task: enrichedTask,
+    });
+
+    if (task.assigneeAgentId) {
+      this.eventsGateway.emitAgentActivity(existing.projectId, {
+        agentId: task.assigneeAgentId,
+        taskId: task.id,
         action: 'status_changed',
         metadata: {
           from: existing.status,
           to: dto.status,
         },
-      },
+      });
+    }
+
+    this.eventsGateway.emitTaskUpdated(existing.projectId, {
+      taskId: task.id,
+      changes: { status: dto.status, customStatusId: dto.customStatusId },
+      actorId: existing.project.ownerId,
+      actorType: 'HUMAN',
+      task: enrichedTask,
     });
 
-    return { data: task };
+    return { data: enrichedTask };
   }
 
   async createSubtask(id: string, dto: CreateSubtaskDto) {
@@ -156,7 +281,7 @@ export class TasksService {
         parentId: parent.id,
         title: dto.title ?? 'Untitled subtask',
         description: dto.description,
-        status: dto.status ?? GlobalTaskStatus.TODO,
+        status: dto.status ?? GlobalTaskStatus.BACKLOG,
         customStatusId: dto.customStatusId,
         priority: dto.priority ?? parent.priority,
         assigneeUserId: dto.assigneeUserId,
@@ -168,7 +293,25 @@ export class TasksService {
       include: this.taskInclude,
     });
 
-    return { data: subtask };
+    const enrichedSubtask = await this.enrichTask(subtask);
+
+    await this.activityService.enqueueTaskActivity({
+      taskId: subtask.id,
+      actorUserId: parent.project.ownerId,
+      action: 'subtask_created',
+      metadata: {
+        parentId: parent.id,
+        projectId: parent.projectId,
+      },
+    });
+
+    this.eventsGateway.emitTaskCreated(parent.projectId, {
+      task: enrichedSubtask,
+      projectId: parent.projectId,
+      parentId: parent.id,
+    });
+
+    return { data: enrichedSubtask };
   }
 
   async getActivity(id: string) {
@@ -199,6 +342,41 @@ export class TasksService {
     }
 
     return task;
+  }
+
+  private async enrichTask(task: any) {
+    const numbered = await this.computeDisplayIds(task.projectId);
+    return {
+      ...task,
+      displayId: numbered.get(task.id),
+    };
+  }
+
+  private async enrichTasks(tasks: any[]) {
+    if (!tasks.length) return tasks;
+    const projectId = tasks[0].projectId;
+    const numbered = await this.computeDisplayIds(projectId);
+    return tasks.map((task) => ({
+      ...task,
+      displayId: numbered.get(task.id),
+    }));
+  }
+
+  private async computeDisplayIds(projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    const tasks = await this.prisma.task.findMany({
+      where: { projectId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+
+    const prefix = (project?.slug || 'back')
+      .split(/[-_]/)[0]
+      .replace(/[^a-zA-Z]/g, '')
+      .toUpperCase()
+      .slice(0, 4) || 'BACK';
+
+    return new Map(tasks.map((task, index) => [task.id, `${prefix}-${111 + index}`]));
   }
 
   private readonly taskInclude = {
